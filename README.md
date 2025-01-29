@@ -1,6 +1,6 @@
 # go-longpoll
 
-A simple bi-directional HTTP long polling package
+A simple bi-directional HTTP long polling go module
 
 ## Features
 
