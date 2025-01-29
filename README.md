@@ -12,7 +12,7 @@ A simple bi-directional HTTP long polling package
 
 Client Example
 
-```
+```go
 // Create a new LongPoll Manager with default settings
 manager := longpoll.NewDefaultManager()
 
@@ -49,7 +49,7 @@ if err != nil {
 
 Server Example
 
-```
+```go
 // Create a new LongPoll Manager with default settings
 manager := longpoll.NewDefaultManager()
 
