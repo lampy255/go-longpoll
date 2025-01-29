@@ -35,7 +35,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	// Take input from the user and send it to "client1"
+	// Take input from CLI and send it to "client1"
 	scanner := bufio.NewScanner(os.Stdin)
 	fmt.Println("Enter messages to send to all clients and press Enter to send")
 	for {
