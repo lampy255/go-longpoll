@@ -10,6 +10,32 @@ A simple bi-directional HTTP long polling package
 
 ## Examples
 
+### Server Example
+
+```go
+// Create a new LongPoll Manager with default settings
+manager := longpoll.NewDefaultManager()
+
+// Set callback function
+receiveCallback := func(peerUUID string, message longpoll.Message) {
+    fmt.Println("Received Message:", string(message.Data))
+}
+manager.ReceiveCallback = &receiveCallback
+
+// Start the LongPoll Manager
+err := manager.Start()
+if err != nil {
+    log.Fatal(err)
+}
+
+// Send a message to peer named "client1"
+err := manager.Send("client1", "Hello from server!", nil)
+if err != nil {
+    log.Println(err)
+}
+
+```
+
 ### Client Example
 
 ```go
@@ -45,30 +71,4 @@ err := manager.Send("server1", "Hello from client!", nil)
 if err != nil {
     log.Println(err)
 }
-```
-
-### Server Example
-
-```go
-// Create a new LongPoll Manager with default settings
-manager := longpoll.NewDefaultManager()
-
-// Set callback function
-receiveCallback := func(peerUUID string, message longpoll.Message) {
-    fmt.Println("Received Message:", string(message.Data))
-}
-manager.ReceiveCallback = &receiveCallback
-
-// Start the LongPoll Manager
-err := manager.Start()
-if err != nil {
-    log.Fatal(err)
-}
-
-// Send a message to peer named "client1"
-err := manager.Send("client1", "Hello from server!", nil)
-if err != nil {
-    log.Println(err)
-}
-
 ```
