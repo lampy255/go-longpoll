@@ -28,10 +28,21 @@ if err != nil {
     log.Fatal(err)
 }
 
-// Send a message to peer named "client1"
-err := manager.Send("client1", "Hello from server!", nil)
-if err != nil {
-    log.Println(err)
+// Take input from the user and send it to "client1"
+scanner := bufio.NewScanner(os.Stdin)
+fmt.Println("Enter messages to send to client1 and press Enter to send")
+for {
+    // .Scan() waits for a line to be completed, i.e., the user presses Enter.
+    scanned := scanner.Scan()
+    if !scanned {
+        // If we reach EOF or an error occurred, break
+        break
+    }
+
+    err := manager.Send("client1", scanner.Text(), nil)
+    if err != nil {
+        log.Println(err)
+    }
 }
 
 ```
@@ -66,9 +77,20 @@ if err != nil {
     log.Fatal(err)
 }
 
-// Send a message to the server
-err := manager.Send("server1", "Hello from client!", nil)
-if err != nil {
-    log.Println(err)
+// Take input from CLI and send it to "server1"
+scanner := bufio.NewScanner(os.Stdin)
+fmt.Println("Enter messages to send to the server and press Enter to send")
+for {
+    // .Scan() waits for a line to be completed, i.e., the user presses Enter.
+    scanned := scanner.Scan()
+    if !scanned {
+        // If we reach EOF or an error occurred, break
+        break
+    }
+
+    err := manager.Send("server1", scanner.Text(), nil)
+    if err != nil {
+        log.Println(err)
+    }
 }
 ```
