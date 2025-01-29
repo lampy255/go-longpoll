@@ -10,7 +10,7 @@ A simple bi-directional HTTP long polling package
 
 ## Examples
 
-Client Example
+### Client Example
 
 ```go
 // Create a new LongPoll Manager with default settings
@@ -47,7 +47,7 @@ if err != nil {
 }
 ```
 
-Server Example
+### Server Example
 
 ```go
 // Create a new LongPoll Manager with default settings
