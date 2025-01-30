@@ -295,12 +295,23 @@ func (m *Manager) Forward(peerUUID string, message Message) error {
 	// Cast the peer
 	peer := lpp.(*Peer)
 
-	// Send the message to the peers channel
-	select {
-	case peer.Ch <- message:
-		return nil
-	case <-time.After(m.Deadline):
-		return errors.New("failed to forward message to " + peerUUID + ": deadline exceeded")
+	// Check if the peer is a server
+	if peer.IsServer {
+		// Send via POST
+		err := m.sendPOST(peer.ServerURL, message, peer.Headers)
+		if err != nil {
+			return errors.New("failed to forward message to " + peerUUID + ": " + err.Error())
+		} else {
+			return nil
+		}
+	} else {
+		// Send via channel
+		select {
+		case peer.Ch <- message:
+			return nil
+		case <-time.After(m.Deadline):
+			return errors.New("failed to forward message to " + peerUUID + ": deadline exceeded")
+		}
 	}
 }
 
@@ -331,18 +342,27 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 	m.peers.Range(func(key, value interface{}) bool {
 		peer := value.(*Peer)
 
-		// Send the message to the peers channel
-		go func() {
-			select {
-			case peer.Ch <- message:
-				return
-			case <-time.After(m.Deadline):
-				log.Println("failed to send message to peer:", key, "deadline exceeded")
-				return
-			default:
-				log.Println("failed to send message to peer:", key)
+		// Check if the peer is a server
+		if peer.IsServer {
+			// Send via POST
+			err := m.sendPOST(peer.ServerURL, message, peer.Headers)
+			if err != nil {
+				log.Println("failed to FanOut message to " + peer.UUID + ": " + err.Error())
 			}
-		}()
+		} else {
+			// Send the message to the peers channel
+			go func() {
+				select {
+				case peer.Ch <- message:
+					return
+				case <-time.After(m.Deadline):
+					log.Println("failed to FanOut message to peer:", key, "deadline exceeded")
+					return
+				default:
+					log.Println("failed to FanOut message to peer:", key)
+				}
+			}()
+		}
 
 		return true
 	})
@@ -380,18 +400,27 @@ func (m *Manager) FanOutSubscribers(data interface{}, atttributes map[string]str
 		// Check if the peer is subscribed to the topic
 		for _, t := range peer.Topics {
 			if t == topic {
-				// Send the message to the peers channel
-				go func() {
-					select {
-					case peer.Ch <- message:
-						return
-					case <-time.After(m.Deadline):
-						log.Println("failed to send message to peer:", key, "deadline exceeded")
-						return
-					default:
-						log.Println("failed to send message to peer:", key)
+				// Check if the peer is a server
+				if peer.IsServer {
+					// Send via POST
+					err := m.sendPOST(peer.ServerURL, message, peer.Headers)
+					if err != nil {
+						log.Println("failed to FanOut message to " + peer.UUID + ": " + err.Error())
 					}
-				}()
+				} else {
+					// Send the message to the peers channel
+					go func() {
+						select {
+						case peer.Ch <- message:
+							return
+						case <-time.After(m.Deadline):
+							log.Println("failed to FanOut message to peer:", key, "deadline exceeded")
+							return
+						default:
+							log.Println("failed to FanOut message to peer:", key)
+						}
+					}()
+				}
 				break
 			}
 		}
