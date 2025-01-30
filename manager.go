@@ -295,6 +295,11 @@ func (m *Manager) Forward(peerUUID string, message Message) error {
 	// Cast the peer
 	peer := lpp.(*Peer)
 
+	// Apply sticky attributes
+	for k, v := range peer.StickyAttrbitues {
+		message.Attributes[k] = v
+	}
+
 	// Check if the peer is a server
 	if peer.IsServer {
 		// Send via POST
@@ -330,17 +335,22 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 		dataBytes = []byte{}
 	}
 
-	// Create a new message
-	message := Message{
-		Data:        dataBytes,
-		Attributes:  attributes,
-		MessageID:   uuid.New().String(),
-		PublishTime: time.Now(),
-	}
-
 	// Send the message to all peers
 	m.peers.Range(func(key, value interface{}) bool {
 		peer := value.(*Peer)
+
+		// Create a new message
+		message := Message{
+			Data:        dataBytes,
+			Attributes:  attributes,
+			MessageID:   uuid.New().String(),
+			PublishTime: time.Now(),
+		}
+
+		// Apply sticky attributes
+		for k, v := range peer.StickyAttrbitues {
+			message.Attributes[k] = v
+		}
 
 		// Check if the peer is a server
 		if peer.IsServer {
@@ -371,7 +381,7 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 }
 
 // Sends a message to all peers subscribed to a given topic
-func (m *Manager) FanOutSubscribers(data interface{}, atttributes map[string]string, topic string) error {
+func (m *Manager) FanOutSubscribers(data interface{}, attributes map[string]string, topic string) error {
 	// Marshal the data
 	var dataBytes []byte
 	if data != nil {
@@ -385,17 +395,22 @@ func (m *Manager) FanOutSubscribers(data interface{}, atttributes map[string]str
 		dataBytes = []byte{}
 	}
 
-	// Create a new message
-	message := Message{
-		Data:        dataBytes,
-		Attributes:  atttributes,
-		MessageID:   uuid.New().String(),
-		PublishTime: time.Now(),
-	}
-
 	// Send the message to all subscribers
 	m.peers.Range(func(key, value interface{}) bool {
 		peer := value.(*Peer)
+
+		// Create a new message
+		message := Message{
+			Data:        dataBytes,
+			Attributes:  attributes,
+			MessageID:   uuid.New().String(),
+			PublishTime: time.Now(),
+		}
+
+		// Apply sticky attributes
+		for k, v := range peer.StickyAttrbitues {
+			message.Attributes[k] = v
+		}
 
 		// Check if the peer is subscribed to the topic
 		for _, t := range peer.Topics {
