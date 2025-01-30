@@ -88,16 +88,16 @@ func (m *Manager) AddServerPeer(uuid string, url string, headers map[string]stri
 		return errors.New("peer already exists")
 	}
 
-	// Create a new lpPeer
-	lpp := &lpPeer{
+	// Create a new Peer
+	lpp := &Peer{
 		UUID:             uuid,
 		IsServer:         true,
 		ServerURL:        url,
 		Headers:          headers,
 		StickyAttrbitues: stickyAttributes,
-		UpCallback:       m.UpCallback,
-		DownCallback:     m.DownCallback,
-		ReceiveCallback:  m.ReceiveCallback,
+		upCallback:       m.UpCallback,
+		downCallback:     m.DownCallback,
+		receiveCallback:  m.ReceiveCallback,
 	}
 
 	// Store the peer
@@ -112,10 +112,10 @@ func (m *Manager) AddServerPeer(uuid string, url string, headers map[string]stri
 				// Quit the routine if the peer has been deleted
 				return
 			}
-			lpPeer := p.(*lpPeer)
+			Peer := p.(*Peer)
 
 			// Send Poll (this will block until a message is received)
-			err := lpPeer.poll(m.Deadline, m.UUID)
+			err := Peer.poll(m.Deadline, m.UUID)
 			if err != nil {
 				time.Sleep(m.PollLength)
 			}
@@ -131,7 +131,7 @@ func (m *Manager) DeletePeer(uuid string) error {
 	if v == nil {
 		return errors.New("peer not found")
 	}
-	peer := v.(*lpPeer)
+	peer := v.(*Peer)
 
 	// Close channel if it exists
 	if peer.Ch != nil {
@@ -156,7 +156,7 @@ func (m *Manager) AddTopic(uuid string, topic string) error {
 		return errors.New("peer not found")
 	}
 
-	peer := lpp.(*lpPeer)
+	peer := lpp.(*Peer)
 
 	peer.Topics = append(peer.Topics, topic)
 	return nil
@@ -169,7 +169,7 @@ func (m *Manager) RemoveTopic(uuid string, topic string) error {
 		return errors.New("peer not found")
 	}
 
-	peer := lpp.(*lpPeer)
+	peer := lpp.(*Peer)
 
 	topics := peer.Topics
 	for i, t := range topics {
@@ -188,8 +188,20 @@ func (m *Manager) GetTopics(uuid string) ([]string, error) {
 		return nil, errors.New("peer not found")
 	}
 
-	peer := lpp.(*lpPeer)
+	peer := lpp.(*Peer)
 	return peer.Topics, nil
+}
+
+// Sets the sticky attributes of a peer
+func (m *Manager) SetPeerStickyAttributes(peerUUID string, attributes map[string]string) error {
+	lpp, _ := m.peers.Load(peerUUID)
+	if lpp == nil {
+		return errors.New("peer not found")
+	}
+
+	peer := lpp.(*Peer)
+	peer.StickyAttrbitues = attributes
+	return nil
 }
 
 // Sends a message to a peer
@@ -222,7 +234,7 @@ func (m *Manager) Send(peerUUID string, data interface{}, attributes map[string]
 	}
 
 	// Cast the peer
-	peer := lpp.(*lpPeer)
+	peer := lpp.(*Peer)
 
 	// Apply sticky attributes
 	for k, v := range peer.StickyAttrbitues {
@@ -258,7 +270,7 @@ func (m *Manager) Forward(peerUUID string, message Message) error {
 	}
 
 	// Cast the peer
-	peer := lpp.(*lpPeer)
+	peer := lpp.(*Peer)
 
 	// Send the message to the peers channel
 	select {
@@ -294,7 +306,7 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 
 	// Send the message to all peers
 	m.peers.Range(func(key, value interface{}) bool {
-		peer := value.(*lpPeer)
+		peer := value.(*Peer)
 
 		// Send the message to the peers channel
 		go func() {
@@ -340,7 +352,7 @@ func (m *Manager) FanOutSubscribers(data interface{}, atttributes map[string]str
 
 	// Send the message to all subscribers
 	m.peers.Range(func(key, value interface{}) bool {
-		peer := value.(*lpPeer)
+		peer := value.(*Peer)
 
 		// Check if the peer is subscribed to the topic
 		for _, t := range peer.Topics {

@@ -26,13 +26,13 @@ func (m *Manager) handleGET(c *gin.Context) {
 	if lpp == nil {
 		// Create a new peer
 		ch := make(chan Message, 50)
-		newPeer := &lpPeer{
+		newPeer := &Peer{
 			UUID:            uuid,
 			Ch:              ch,
 			LastConsumed:    time.Now(),
-			UpCallback:      m.UpCallback,
-			DownCallback:    m.DownCallback,
-			ReceiveCallback: m.ReceiveCallback,
+			upCallback:      m.UpCallback,
+			downCallback:    m.DownCallback,
+			receiveCallback: m.ReceiveCallback,
 		}
 		m.peers.Store(uuid, newPeer)
 		lpp = newPeer
@@ -49,7 +49,7 @@ func (m *Manager) handleGET(c *gin.Context) {
 	}
 
 	// Cast the peer
-	peer := lpp.(*lpPeer)
+	peer := lpp.(*Peer)
 
 	// Send available message or wait
 	select {
@@ -81,13 +81,13 @@ func (m *Manager) handlePOST(c *gin.Context) {
 	if lpp == nil {
 		// Create a new peer
 		ch := make(chan Message, 50)
-		newPeer := &lpPeer{
+		newPeer := &Peer{
 			UUID:            uuid,
 			Ch:              ch,
 			LastConsumed:    time.Now(),
-			UpCallback:      m.UpCallback,
-			DownCallback:    m.DownCallback,
-			ReceiveCallback: m.ReceiveCallback,
+			upCallback:      m.UpCallback,
+			downCallback:    m.DownCallback,
+			receiveCallback: m.ReceiveCallback,
 		}
 		m.peers.Store(uuid, newPeer)
 		lpp = newPeer
@@ -173,7 +173,7 @@ func (m *Manager) sendPOST(url string, msg Message, headers map[string]string) e
 func (m *Manager) garbageCollectPeers() {
 	m.peers.Range(func(key, value interface{}) bool {
 		// Cast the value to a lpPeer
-		peer := value.(*lpPeer)
+		peer := value.(*Peer)
 
 		// Skip servers
 		if peer.IsServer {

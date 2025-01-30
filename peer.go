@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-func (p *lpPeer) poll(deadline time.Duration, managerUUID string) error {
+func (p *Peer) poll(deadline time.Duration, managerUUID string) error {
 	// Create a new request
 	req, err := http.NewRequest("GET", p.ServerURL, nil)
 	if err != nil {
@@ -53,8 +53,8 @@ func (p *lpPeer) poll(deadline time.Duration, managerUUID string) error {
 		}
 
 		// Call the receive callback
-		if p.ReceiveCallback != nil {
-			cb := *p.ReceiveCallback
+		if p.receiveCallback != nil {
+			cb := *p.receiveCallback
 			go cb(p.UUID, msg)
 		}
 		p.markOnline()
@@ -74,21 +74,21 @@ func (p *lpPeer) poll(deadline time.Duration, managerUUID string) error {
 	}
 }
 
-func (p *lpPeer) markOnline() {
+func (p *Peer) markOnline() {
 	if !p.Online {
 		p.Online = true
-		if p.UpCallback != nil {
-			cb := *p.UpCallback
+		if p.upCallback != nil {
+			cb := *p.upCallback
 			go cb(p.UUID)
 		}
 	}
 }
 
-func (p *lpPeer) markOffline() {
+func (p *Peer) markOffline() {
 	if p.Online {
 		p.Online = false
-		if p.DownCallback != nil {
-			cb := *p.DownCallback
+		if p.downCallback != nil {
+			cb := *p.downCallback
 			go cb(p.UUID)
 		}
 	}

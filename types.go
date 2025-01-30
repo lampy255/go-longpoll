@@ -30,19 +30,19 @@ type Message struct {
 	PublishTime time.Time         `json:"publish_time"`
 }
 
-type lpPeer struct {
-	UUID             string
-	Ch               chan Message
-	LastConsumed     time.Time
-	UpCallback       *func(string)
-	DownCallback     *func(string)
-	ReceiveCallback  *func(string, Message)
-	Topics           []string
-	StickyAttrbitues map[string]string
+type Peer struct {
+	UUID             string       // Unique identifier for this peer
+	Ch               chan Message // Buffered channel for outgoing messages to client peers
+	LastConsumed     time.Time    // Last time this client peer consumed a message
+	upCallback       *func(string)
+	downCallback     *func(string)
+	receiveCallback  *func(string, Message)
+	Topics           []string          // Topics this peer is subscribed to (see FanOutSubscribers())
+	StickyAttrbitues map[string]string // Attributes to be appended to every outgoing message
 
 	// Specific to server peers
 	IsServer  bool
-	ServerURL string
-	Headers   map[string]string
+	ServerURL string            // URL of server running longpoll API
+	Headers   map[string]string // Headers to be applied to outgoing requests
 	Online    bool
 }
