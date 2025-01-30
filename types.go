@@ -44,8 +44,9 @@ type Peer struct {
 	StickyAttrbitues map[string]string // Attributes to be appended to every outgoing message
 
 	// Specific to server peers
-	IsServer  bool
-	ServerURL string            // URL of server running longpoll API
-	Headers   map[string]string // Headers to be applied to outgoing requests
-	Online    bool
+	IsServer          bool
+	ServerURL         string            // URL of server running longpoll API
+	Headers           map[string]string // Headers to be applied to outgoing requests
+	Online            bool
+	remoteManagerUUID string
 }

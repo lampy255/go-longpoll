@@ -1,11 +1,8 @@
 package longpoll
 
 import (
-	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
-	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -20,6 +17,9 @@ func (m *Manager) handleGET(c *gin.Context) {
 		})
 		return
 	}
+
+	// Set manager UUID in response headers
+	c.Header("uuid", m.UUID)
 
 	// Does the peer exist?
 	lpp, _ := m.peers.Load(uuid)
@@ -79,6 +79,9 @@ func (m *Manager) handlePOST(c *gin.Context) {
 		return
 	}
 
+	// Set manager UUID in response headers
+	c.Header("uuid", m.UUID)
+
 	// Does the peer exist?
 	lpp, _ := m.peers.Load(uuid)
 	if lpp == nil {
@@ -128,50 +131,6 @@ func (m *Manager) handlePOST(c *gin.Context) {
 		go cb(uuid, msg)
 	}
 	c.Status(200)
-}
-
-// Send a POST request to a server peer
-func (m *Manager) sendPOST(url string, msg Message, headers map[string]string) error {
-	// Marshal the message
-	msgBytes, err := json.Marshal(msg)
-	if err != nil {
-		return err
-	}
-
-	// Create the request
-	req, err := http.NewRequest("POST", url, bytes.NewReader(msgBytes))
-	if err != nil {
-		return err
-	}
-
-	// Set headers
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("uuid", m.UUID)
-
-	// Set custom headers
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-
-	// Create the client
-	client := &http.Client{
-		Timeout: m.Deadline,
-		Jar:     m.cookieJar,
-	}
-
-	// Send request
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-
-	// Check response code
-	switch resp.StatusCode {
-	case 200:
-		return nil
-	default:
-		return errors.New(resp.Status)
-	}
 }
 
 // Deletes peers that have expired

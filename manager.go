@@ -122,7 +122,7 @@ func (m *Manager) AddServerPeer(uuid string, url string, headers map[string]stri
 			Peer := p.(*Peer)
 
 			// Send Poll (this will block until a message is received)
-			err := Peer.poll(m.Deadline, m.UUID, m.cookieJar)
+			err := Peer.pollGET(m.Deadline, m.UUID, m.cookieJar)
 			if err != nil {
 				time.Sleep(m.PollLength)
 			}
@@ -274,7 +274,7 @@ func (m *Manager) Send(peerUUID string, data interface{}, attributes map[string]
 	// Check if the peer is a server
 	if peer.IsServer {
 		// Send via POST
-		err := m.sendPOST(peer.ServerURL, message, peer.Headers)
+		err := peer.pollPOST(message, m.UUID, m.Deadline, m.cookieJar)
 		if err != nil {
 			return errors.New("failed to send message to " + peerUUID + ": " + err.Error())
 		} else {
@@ -310,7 +310,7 @@ func (m *Manager) Forward(peerUUID string, message Message) error {
 	// Check if the peer is a server
 	if peer.IsServer {
 		// Send via POST
-		err := m.sendPOST(peer.ServerURL, message, peer.Headers)
+		err := peer.pollPOST(message, m.UUID, m.Deadline, m.cookieJar)
 		if err != nil {
 			return errors.New("failed to forward message to " + peerUUID + ": " + err.Error())
 		} else {
@@ -362,7 +362,7 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 		// Check if the peer is a server
 		if peer.IsServer {
 			// Send via POST
-			err := m.sendPOST(peer.ServerURL, message, peer.Headers)
+			err := peer.pollPOST(message, m.UUID, m.Deadline, m.cookieJar)
 			if err != nil {
 				log.Println("failed to FanOut message to " + peer.UUID + ": " + err.Error())
 			}
@@ -425,7 +425,7 @@ func (m *Manager) FanOutSubscribers(data interface{}, attributes map[string]stri
 				// Check if the peer is a server
 				if peer.IsServer {
 					// Send via POST
-					err := m.sendPOST(peer.ServerURL, message, peer.Headers)
+					err := peer.pollPOST(message, m.UUID, m.Deadline, m.cookieJar)
 					if err != nil {
 						log.Println("failed to FanOut message to " + peer.UUID + ": " + err.Error())
 					}

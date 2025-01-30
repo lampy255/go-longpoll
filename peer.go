@@ -1,15 +1,18 @@
 package longpoll
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"io"
+	"log"
 	"net/http"
 	"net/http/cookiejar"
 	"time"
 )
 
-func (p *Peer) poll(deadline time.Duration, managerUUID string, jar *cookiejar.Jar) error {
+// Poll the peer via GET request
+func (p *Peer) pollGET(deadline time.Duration, managerUUID string, jar *cookiejar.Jar) error {
 	// Create a new request
 	req, err := http.NewRequest("GET", p.ServerURL, nil)
 	if err != nil {
@@ -36,6 +39,13 @@ func (p *Peer) poll(deadline time.Duration, managerUUID string, jar *cookiejar.J
 	if err != nil {
 		p.markOffline()
 		return err
+	}
+
+	// Check remote manager UUID
+	remoteManagerUUID := resp.Header.Get("uuid")
+	if remoteManagerUUID != p.remoteManagerUUID {
+		log.Println("Server Peer UUID changed from", p.remoteManagerUUID, "to", remoteManagerUUID)
+		p.remoteManagerUUID = remoteManagerUUID
 	}
 
 	// Check response code
@@ -73,6 +83,57 @@ func (p *Peer) poll(deadline time.Duration, managerUUID string, jar *cookiejar.J
 		// Error
 		p.markOffline()
 		return errors.New("poll failed: " + resp.Status)
+	}
+}
+
+// Poll the peer via POST request
+func (p *Peer) pollPOST(msg Message, managerUUID string, deadline time.Duration, jar *cookiejar.Jar) error {
+	// Marshal the message
+	msgBytes, err := json.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
+	// Create the request
+	req, err := http.NewRequest("POST", p.ServerURL, bytes.NewReader(msgBytes))
+	if err != nil {
+		return err
+	}
+
+	// Set headers
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("uuid", managerUUID)
+
+	// Set custom headers
+	for k, v := range p.Headers {
+		req.Header.Set(k, v)
+	}
+
+	// Create the client
+	client := &http.Client{
+		Timeout: deadline,
+		Jar:     jar,
+	}
+
+	// Send request
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+
+	// Check remote manager UUID
+	remoteManagerUUID := resp.Header.Get("uuid")
+	if remoteManagerUUID != p.remoteManagerUUID {
+		log.Println("Server Peer UUID changed from", p.remoteManagerUUID, "to", remoteManagerUUID)
+		p.remoteManagerUUID = remoteManagerUUID
+	}
+
+	// Check response code
+	switch resp.StatusCode {
+	case 200:
+		return nil
+	default:
+		return errors.New(resp.Status)
 	}
 }
 
