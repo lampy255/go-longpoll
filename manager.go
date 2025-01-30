@@ -346,6 +346,11 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 	m.peers.Range(func(key, value interface{}) bool {
 		peer := value.(*Peer)
 
+		// Skip peers that are offline
+		if !peer.Online {
+			return true
+		}
+
 		// Create a new message
 		message := Message{
 			Data:        dataBytes,
@@ -405,6 +410,11 @@ func (m *Manager) FanOutSubscribers(data interface{}, attributes map[string]stri
 	// Send the message to all subscribers
 	m.peers.Range(func(key, value interface{}) bool {
 		peer := value.(*Peer)
+
+		// Skip peers that are offline
+		if !peer.Online {
+			return true
+		}
 
 		// Create a new message
 		message := Message{
