@@ -192,6 +192,17 @@ func (m *Manager) GetTopics(uuid string) ([]string, error) {
 	return peer.Topics, nil
 }
 
+// Gets the IP address of a peer
+func (m *Manager) GetPeerIP(uuid string) (string, error) {
+	lpp, _ := m.peers.Load(uuid)
+	if lpp == nil {
+		return "", errors.New("peer not found")
+	}
+
+	peer := lpp.(*Peer)
+	return peer.ipAddr, nil
+}
+
 // Sets the sticky attributes of a peer
 func (m *Manager) SetPeerStickyAttributes(peerUUID string, attributes map[string]string) error {
 	lpp, _ := m.peers.Load(peerUUID)

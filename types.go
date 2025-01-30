@@ -31,7 +31,8 @@ type Message struct {
 }
 
 type Peer struct {
-	UUID             string       // Unique identifier for this peer
+	UUID             string // Unique identifier for this peer
+	ipAddr           string
 	Ch               chan Message // Buffered channel for outgoing messages to client peers
 	LastConsumed     time.Time    // Last time this client peer consumed a message
 	upCallback       *func(string)

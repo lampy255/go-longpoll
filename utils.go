@@ -51,6 +51,9 @@ func (m *Manager) handleGET(c *gin.Context) {
 	// Cast the peer
 	peer := lpp.(*Peer)
 
+	// Update the peer ipAddress
+	peer.ipAddr = c.ClientIP()
+
 	// Send available message or wait
 	select {
 	case msg := <-peer.Ch:
@@ -83,6 +86,7 @@ func (m *Manager) handlePOST(c *gin.Context) {
 		ch := make(chan Message, 50)
 		newPeer := &Peer{
 			UUID:            uuid,
+			ipAddr:          c.ClientIP(),
 			Ch:              ch,
 			LastConsumed:    time.Now(),
 			upCallback:      m.UpCallback,
