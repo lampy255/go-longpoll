@@ -44,7 +44,7 @@ func (p *Peer) pollGET(deadline time.Duration, managerUUID string, jar *cookieja
 	// Check remote manager UUID
 	remoteManagerUUID := resp.Header.Get("uuid")
 	if remoteManagerUUID != p.remoteManagerUUID {
-		log.Println("Server Peer UUID changed from", p.remoteManagerUUID, "to", remoteManagerUUID)
+		log.Println("Poll Peer UUID changed from", stringPlaceHolder(p.remoteManagerUUID), "to", stringPlaceHolder(remoteManagerUUID))
 		p.remoteManagerUUID = remoteManagerUUID
 	}
 
@@ -124,7 +124,7 @@ func (p *Peer) pollPOST(msg Message, managerUUID string, deadline time.Duration,
 	// Check remote manager UUID
 	remoteManagerUUID := resp.Header.Get("uuid")
 	if remoteManagerUUID != p.remoteManagerUUID {
-		log.Println("Server Peer UUID changed from", p.remoteManagerUUID, "to", remoteManagerUUID)
+		log.Println("Poll Peer UUID changed from", stringPlaceHolder(p.remoteManagerUUID), "to", stringPlaceHolder(remoteManagerUUID))
 		p.remoteManagerUUID = remoteManagerUUID
 	}
 

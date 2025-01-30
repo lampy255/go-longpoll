@@ -156,3 +156,10 @@ func (m *Manager) garbageCollectPeers() {
 		return true
 	})
 }
+
+func stringPlaceHolder(s string) string {
+	if s == "" {
+		return "none"
+	}
+	return s
+}
