@@ -5,10 +5,11 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"net/http/cookiejar"
 	"time"
 )
 
-func (p *Peer) poll(deadline time.Duration, managerUUID string) error {
+func (p *Peer) poll(deadline time.Duration, managerUUID string, jar *cookiejar.Jar) error {
 	// Create a new request
 	req, err := http.NewRequest("GET", p.ServerURL, nil)
 	if err != nil {
@@ -27,6 +28,7 @@ func (p *Peer) poll(deadline time.Duration, managerUUID string) error {
 	// Create client
 	client := &http.Client{
 		Timeout: deadline,
+		Jar:     jar,
 	}
 
 	// Send request

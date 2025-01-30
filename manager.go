@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"log"
+	"net/http/cookiejar"
 	"strconv"
 	"sync"
 	"time"
@@ -14,8 +15,14 @@ import (
 
 // Creates a new LongPoll Manager with default settings
 func NewDefaultManager() *Manager {
+	jar, err := cookiejar.New(nil)
+	if err != nil {
+		log.Fatalf("Failed to create cookie jar: %v", err)
+	}
+
 	m := &Manager{
 		UUID:       uuid.New().String(),
+		cookieJar:  jar,
 		peers:      sync.Map{},
 		API_Port:   8080,
 		API_Path:   "/poll",
@@ -115,7 +122,7 @@ func (m *Manager) AddServerPeer(uuid string, url string, headers map[string]stri
 			Peer := p.(*Peer)
 
 			// Send Poll (this will block until a message is received)
-			err := Peer.poll(m.Deadline, m.UUID)
+			err := Peer.poll(m.Deadline, m.UUID, m.cookieJar)
 			if err != nil {
 				time.Sleep(m.PollLength)
 			}

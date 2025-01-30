@@ -156,6 +156,7 @@ func (m *Manager) sendPOST(url string, msg Message, headers map[string]string) e
 	// Create the client
 	client := &http.Client{
 		Timeout: m.Deadline,
+		Jar:     m.cookieJar,
 	}
 
 	// Send request

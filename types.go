@@ -1,6 +1,7 @@
 package longpoll
 
 import (
+	"net/http/cookiejar"
 	"sync"
 	"time"
 
@@ -8,8 +9,9 @@ import (
 )
 
 type Manager struct {
-	UUID  string
-	peers sync.Map // map[uuid]lpPeer
+	UUID      string
+	peers     sync.Map // map[uuid]lpPeer
+	cookieJar *cookiejar.Jar
 
 	API_Port       int              // Port to listen on
 	API_Path       string           // Path to listen on eg: /poll
