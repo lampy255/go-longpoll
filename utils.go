@@ -29,6 +29,7 @@ func (m *Manager) handleGET(c *gin.Context) {
 		newPeer := &Peer{
 			UUID:            uuid,
 			Ch:              ch,
+			Online:          true,
 			LastConsumed:    time.Now(),
 			upCallback:      m.UpCallback,
 			downCallback:    m.DownCallback,
@@ -90,6 +91,7 @@ func (m *Manager) handlePOST(c *gin.Context) {
 		newPeer := &Peer{
 			UUID:            uuid,
 			ipAddr:          c.ClientIP(),
+			Online:          true,
 			Ch:              ch,
 			LastConsumed:    time.Now(),
 			upCallback:      m.UpCallback,
