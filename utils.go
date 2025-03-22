@@ -27,7 +27,7 @@ func (m *Manager) handleGET(c *gin.Context) {
 	m.peersMU.RUnlock()
 	if peer == nil {
 		// Create a new peer
-		ch := make(chan Message, 50)
+		ch := make(chan Message, m.OutboundBufferSize)
 		newPeer := &Peer{
 			UUID:            uuid,
 			Ch:              ch,
@@ -90,7 +90,7 @@ func (m *Manager) handlePOST(c *gin.Context) {
 	m.peersMU.RUnlock()
 	if peer == nil {
 		// Create a new peer
-		ch := make(chan Message, 50)
+		ch := make(chan Message, m.OutboundBufferSize)
 		newPeer := &Peer{
 			UUID:            uuid,
 			ipAddr:          c.ClientIP(),

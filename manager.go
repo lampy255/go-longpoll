@@ -20,14 +20,15 @@ func NewDefaultManager() *Manager {
 	}
 
 	m := &Manager{
-		UUID:       uuid.New().String(),
-		cookieJar:  jar,
-		peers:      make(map[string]*Peer, 255),
-		API_Port:   8080,
-		API_Path:   "/poll",
-		PollLength: 10 * time.Second,
-		PeerExpiry: 30 * time.Second,
-		Deadline:   20 * time.Second,
+		UUID:               uuid.New().String(),
+		cookieJar:          jar,
+		peers:              make(map[string]*Peer, 255),
+		API_Port:           8080,
+		API_Path:           "/poll",
+		PollLength:         10 * time.Second,
+		PeerExpiry:         30 * time.Second,
+		Deadline:           20 * time.Second,
+		OutboundBufferSize: 150,
 	}
 	return m
 }
@@ -358,7 +359,7 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 	// Send the message to all peers
 	m.peersMU.Lock()
 	defer m.peersMU.Unlock()
-	for key, peer := range m.peers {
+	for _, peer := range m.peers {
 		// Skip peers that are offline
 		if !peer.Online {
 			continue
@@ -382,7 +383,7 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 			// Send via POST
 			err := peer.pollPOST(message, m.UUID, m.Deadline, m.cookieJar)
 			if err != nil {
-				log.Println("failed to FanOut message to " + peer.UUID + ": " + err.Error())
+				log.Println("failed to FanOut message to peer: " + peer.ipAddr + " - " + err.Error())
 			}
 		} else {
 			// Send the message to the peers channel
@@ -391,10 +392,12 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 				case peer.Ch <- message:
 					return
 				case <-time.After(m.Deadline):
-					log.Println("failed to FanOut message to peer:", key, "deadline exceeded")
+					log.Println("failed to FanOut message to peer:", peer.ipAddr, "- deadline exceeded")
 					return
 				default:
-					log.Println("failed to FanOut message to peer:", key, peer.ipAddr)
+					size := strconv.Itoa(len(peer.Ch))
+					log.Println("failed to FanOut message to peer:", peer.ipAddr, "- outbound buffer full ("+size+")")
+					return
 				}
 			}()
 		}
@@ -421,7 +424,7 @@ func (m *Manager) FanOutSubscribers(data interface{}, attributes map[string]stri
 	// Send the message to all subscribers
 	m.peersMU.Lock()
 	defer m.peersMU.Unlock()
-	for key, peer := range m.peers {
+	for _, peer := range m.peers {
 		// Skip peers that are offline
 		if !peer.Online {
 			continue
@@ -448,7 +451,7 @@ func (m *Manager) FanOutSubscribers(data interface{}, attributes map[string]stri
 					// Send via POST
 					err := peer.pollPOST(message, m.UUID, m.Deadline, m.cookieJar)
 					if err != nil {
-						log.Println("failed to FanOut message to " + peer.UUID + ": " + err.Error())
+						log.Println("failed to FanOut subscriber message to peer: " + peer.ipAddr + " - " + err.Error())
 					}
 				} else {
 					go func() {
@@ -457,7 +460,11 @@ func (m *Manager) FanOutSubscribers(data interface{}, attributes map[string]stri
 						case peer.Ch <- message:
 							return
 						case <-time.After(m.Deadline):
-							log.Println("failed to FanOut message to peer:", key, ": deadline exceeded")
+							log.Println("failed to FanOut subscriber message to peer:", peer.ipAddr, "- deadline exceeded")
+							return
+						default:
+							size := strconv.Itoa(len(peer.Ch))
+							log.Println("failed to FanOut subscriber message to peer:", peer.ipAddr, "- outbound buffer full ("+size+")")
 							return
 						}
 					}()

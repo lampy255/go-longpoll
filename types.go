@@ -14,12 +14,13 @@ type Manager struct {
 	peersMU   sync.RWMutex
 	cookieJar *cookiejar.Jar
 
-	API_Port       int              // Port to listen on
-	API_Path       string           // Path to listen on eg: /poll
-	API_Middleware *gin.HandlerFunc // Middleware to run before each request
-	PollLength     time.Duration    // Time before a poll should be refreshed
-	PeerExpiry     time.Duration    // Time before a peer is considered expired/offline
-	Deadline       time.Duration    // Time before a poll times out
+	API_Port           int              // Port to listen on
+	API_Path           string           // Path to listen on eg: /poll
+	API_Middleware     *gin.HandlerFunc // Middleware to run before each request
+	PollLength         time.Duration    // Time before a poll should be refreshed
+	PeerExpiry         time.Duration    // Time before a peer is considered expired/offline
+	Deadline           time.Duration    // Time before a poll times out
+	OutboundBufferSize int              // Size of outbound message buffers
 
 	UpCallback      *func(peerUUID string)              // Function to call when a peer comes online
 	DownCallback    *func(peerUUID string)              // Function to call when a peer goes offline
