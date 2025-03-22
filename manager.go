@@ -161,6 +161,7 @@ func (m *Manager) DeletePeer(uuid string) error {
 // PeerExists Checks if a peer exists. This function locks peersMU!
 func (m *Manager) PeerExists(uuid string) bool {
 	m.peersMU.RLock()
+	defer m.peersMU.RUnlock()
 	peer, _ := m.peers[uuid]
 	return peer != nil
 }
@@ -213,6 +214,7 @@ func (m *Manager) GetTopics(uuid string) ([]string, error) {
 func (m *Manager) SetTopics(uuid string, topics []string) error {
 	m.peersMU.Lock()
 	defer m.peersMU.Unlock()
+
 	peer, _ := m.peers[uuid]
 	if peer == nil {
 		return errors.New("peer not found")
@@ -247,7 +249,7 @@ func (m *Manager) SetPeerStickyAttributes(peerUUID string, attributes map[string
 	return nil
 }
 
-// Send Sends a message to a peer
+// Send Sends a message to a peer. Locks Mutex!
 func (m *Manager) Send(peerUUID string, data interface{}, attributes map[string]string) error {
 	// Marshal the data
 	var dataBytes []byte
@@ -303,7 +305,7 @@ func (m *Manager) Send(peerUUID string, data interface{}, attributes map[string]
 	}
 }
 
-// Forward Forwards an existing message to a peer
+// Forward Forwards an existing message to a peer. Locks Mutex!
 func (m *Manager) Forward(peerUUID string, message Message) error {
 	// Retrieve the peer
 	m.peersMU.RLock()
