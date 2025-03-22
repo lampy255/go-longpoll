@@ -22,8 +22,10 @@ func (m *Manager) handleGET(c *gin.Context) {
 	c.Header("uuid", m.UUID)
 
 	// Does the peer exist?
-	lpp, _ := m.peers.Load(uuid)
-	if lpp == nil {
+	m.peersMU.RLock()
+	peer, _ := m.peers[uuid]
+	m.peersMU.RUnlock()
+	if peer == nil {
 		// Create a new peer
 		ch := make(chan Message, 50)
 		newPeer := &Peer{
@@ -35,8 +37,10 @@ func (m *Manager) handleGET(c *gin.Context) {
 			downCallback:    m.DownCallback,
 			receiveCallback: m.ReceiveCallback,
 		}
-		m.peers.Store(uuid, newPeer)
-		lpp = newPeer
+		m.peersMU.Lock()
+		m.peers[uuid] = newPeer
+		m.peersMU.Unlock()
+		peer = newPeer
 
 		// Call the manager up callback
 		if m.UpCallback != nil {
@@ -48,9 +52,6 @@ func (m *Manager) handleGET(c *gin.Context) {
 		c.Status(201)
 		return
 	}
-
-	// Cast the peer
-	peer := lpp.(*Peer)
 
 	// Update the peer ipAddress
 	peer.ipAddr = c.ClientIP()
@@ -84,8 +85,10 @@ func (m *Manager) handlePOST(c *gin.Context) {
 	c.Header("uuid", m.UUID)
 
 	// Does the peer exist?
-	lpp, _ := m.peers.Load(uuid)
-	if lpp == nil {
+	m.peersMU.RLock()
+	peer, _ := m.peers[uuid]
+	m.peersMU.RUnlock()
+	if peer == nil {
 		// Create a new peer
 		ch := make(chan Message, 50)
 		newPeer := &Peer{
@@ -98,8 +101,10 @@ func (m *Manager) handlePOST(c *gin.Context) {
 			downCallback:    m.DownCallback,
 			receiveCallback: m.ReceiveCallback,
 		}
-		m.peers.Store(uuid, newPeer)
-		lpp = newPeer
+		m.peersMU.Lock()
+		m.peers[uuid] = newPeer
+		m.peersMU.Unlock()
+		peer = newPeer
 
 		// Call the manager up callback
 		if m.UpCallback != nil {
@@ -137,13 +142,12 @@ func (m *Manager) handlePOST(c *gin.Context) {
 
 // Deletes peers that have expired
 func (m *Manager) garbageCollectPeers() {
-	m.peers.Range(func(key, value interface{}) bool {
-		// Cast the value to a lpPeer
-		peer := value.(*Peer)
-
+	m.peersMU.Lock()
+	defer m.peersMU.Unlock()
+	for key, peer := range m.peers {
 		// Skip servers
 		if peer.IsServer {
-			return true
+			continue
 		}
 
 		// Check if the peer has expired
@@ -153,10 +157,9 @@ func (m *Manager) garbageCollectPeers() {
 				go cb(peer.UUID)
 			}
 			close(peer.Ch)
-			m.peers.Delete(key)
+			delete(m.peers, key)
 		}
-		return true
-	})
+	}
 }
 
 func stringPlaceHolder(s string) string {

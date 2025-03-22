@@ -10,7 +10,8 @@ import (
 
 type Manager struct {
 	UUID      string
-	peers     sync.Map // map[uuid]lpPeer
+	peers     map[string]*Peer
+	peersMU   sync.RWMutex
 	cookieJar *cookiejar.Jar
 
 	API_Port       int              // Port to listen on

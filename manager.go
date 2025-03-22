@@ -6,14 +6,13 @@ import (
 	"log"
 	"net/http/cookiejar"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 )
 
-// Creates a new LongPoll Manager with default settings
+// NewDefaultManager Creates a new LongPoll Manager with default settings
 func NewDefaultManager() *Manager {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -23,7 +22,7 @@ func NewDefaultManager() *Manager {
 	m := &Manager{
 		UUID:       uuid.New().String(),
 		cookieJar:  jar,
-		peers:      sync.Map{},
+		peers:      make(map[string]*Peer, 255),
 		API_Port:   8080,
 		API_Path:   "/poll",
 		PollLength: 10 * time.Second,
@@ -33,7 +32,7 @@ func NewDefaultManager() *Manager {
 	return m
 }
 
-// Starts the LongPoll Manager API and garbage collection
+// Start Starts the LongPoll Manager API and garbage collection
 func (m *Manager) Start() error {
 	// Dummy checks
 	if m.API_Path == "" {
@@ -74,11 +73,16 @@ func (m *Manager) Start() error {
 	r.POST(m.API_Path, m.handlePOST)
 
 	// Start the server
-	go r.Run(":" + port)
+	go func() {
+		err := r.Run(":" + port)
+		if err != nil {
+			log.Fatalf("Failed to start API server: %v", err)
+		}
+	}()
 	return nil
 }
 
-// Adds a server peer to the LongPoll Manager
+// AddServerPeer Adds a server peer to the LongPoll Manager
 func (m *Manager) AddServerPeer(uuid string, url string, headers map[string]string, stickyAttributes map[string]string) error {
 	// Check uuid is not empty
 	if uuid == "" {
@@ -108,18 +112,21 @@ func (m *Manager) AddServerPeer(uuid string, url string, headers map[string]stri
 	}
 
 	// Store the peer
-	m.peers.Store(uuid, lpp)
+	m.peersMU.Lock()
+	m.peers[uuid] = lpp
+	m.peersMU.Unlock()
 
 	// Start poll routine
 	go func() {
 		for {
 			// Get the peer
-			p, _ := m.peers.Load(uuid)
-			if p == nil {
+			m.peersMU.RLock()
+			Peer, _ := m.peers[uuid]
+			m.peersMU.RUnlock()
+			if Peer == nil {
 				// Quit the routine if the peer has been deleted
 				return
 			}
-			Peer := p.(*Peer)
 
 			// Send Poll (this will block until a message is received)
 			err := Peer.pollGET(m.Deadline, m.UUID, m.cookieJar)
@@ -132,13 +139,14 @@ func (m *Manager) AddServerPeer(uuid string, url string, headers map[string]stri
 	return nil
 }
 
-// Deletes a peer from the LongPoll Manager
+// DeletePeer Deletes a peer from the LongPoll Manager
 func (m *Manager) DeletePeer(uuid string) error {
-	v, _ := m.peers.Load(uuid)
-	if v == nil {
+	m.peersMU.Lock()
+	defer m.peersMU.Unlock()
+	peer, _ := m.peers[uuid]
+	if peer == nil {
 		return errors.New("peer not found")
 	}
-	peer := v.(*Peer)
 
 	// Close channel if it exists
 	if peer.Ch != nil {
@@ -146,37 +154,38 @@ func (m *Manager) DeletePeer(uuid string) error {
 	}
 
 	// Delete the peer
-	m.peers.Delete(uuid)
+	delete(m.peers, uuid)
 	return nil
 }
 
-// Check if a peer exists
+// PeerExists Checks if a peer exists. This function locks peersMU!
 func (m *Manager) PeerExists(uuid string) bool {
-	v, _ := m.peers.Load(uuid)
-	return v != nil
+	m.peersMU.RLock()
+	peer, _ := m.peers[uuid]
+	return peer != nil
 }
 
-// Adds a topic to a peer
+// AddTopic Adds a topic to a peer
 func (m *Manager) AddTopic(uuid string, topic string) error {
-	lpp, _ := m.peers.Load(uuid)
-	if lpp == nil {
+	m.peersMU.Lock()
+	defer m.peersMU.Unlock()
+	peer, _ := m.peers[uuid]
+	if peer == nil {
 		return errors.New("peer not found")
 	}
-
-	peer := lpp.(*Peer)
 
 	peer.Topics = append(peer.Topics, topic)
 	return nil
 }
 
-// Removes a topic from a peer
+// RemoveTopic Removes a topic from a peer
 func (m *Manager) RemoveTopic(uuid string, topic string) error {
-	lpp, _ := m.peers.Load(uuid)
-	if lpp == nil {
+	m.peersMU.Lock()
+	defer m.peersMU.Unlock()
+	peer, _ := m.peers[uuid]
+	if peer == nil {
 		return errors.New("peer not found")
 	}
-
-	peer := lpp.(*Peer)
 
 	topics := peer.Topics
 	for i, t := range topics {
@@ -188,53 +197,57 @@ func (m *Manager) RemoveTopic(uuid string, topic string) error {
 	return nil
 }
 
-// Gets the topics of a peer
+// GetTopics Gets the topics of a peer
 func (m *Manager) GetTopics(uuid string) ([]string, error) {
-	lpp, _ := m.peers.Load(uuid)
-	if lpp == nil {
+	m.peersMU.RLock()
+	defer m.peersMU.RUnlock()
+	peer, _ := m.peers[uuid]
+	if peer == nil {
 		return nil, errors.New("peer not found")
 	}
 
-	peer := lpp.(*Peer)
 	return peer.Topics, nil
 }
 
-// Sets the topics of a peer
+// SetTopics Sets the topics of a peer
 func (m *Manager) SetTopics(uuid string, topics []string) error {
-	lpp, _ := m.peers.Load(uuid)
-	if lpp == nil {
+	m.peersMU.Lock()
+	defer m.peersMU.Unlock()
+	peer, _ := m.peers[uuid]
+	if peer == nil {
 		return errors.New("peer not found")
 	}
 
-	peer := lpp.(*Peer)
 	peer.Topics = topics
 	return nil
 }
 
-// Gets the IP address of a peer
+// GetPeerIP Gets the IP address of a peer
 func (m *Manager) GetPeerIP(uuid string) (string, error) {
-	lpp, _ := m.peers.Load(uuid)
-	if lpp == nil {
+	m.peersMU.RLock()
+	defer m.peersMU.RUnlock()
+	peer, _ := m.peers[uuid]
+	if peer == nil {
 		return "", errors.New("peer not found")
 	}
 
-	peer := lpp.(*Peer)
 	return peer.ipAddr, nil
 }
 
-// Sets the sticky attributes of a peer
+// SetPeerStickyAttributes Sets the sticky attributes of a peer
 func (m *Manager) SetPeerStickyAttributes(peerUUID string, attributes map[string]string) error {
-	lpp, _ := m.peers.Load(peerUUID)
-	if lpp == nil {
+	m.peersMU.Lock()
+	defer m.peersMU.Unlock()
+	peer, _ := m.peers[peerUUID]
+	if peer == nil {
 		return errors.New("peer not found")
 	}
 
-	peer := lpp.(*Peer)
 	peer.StickyAttrbitues = attributes
 	return nil
 }
 
-// Sends a message to a peer
+// Send Sends a message to a peer
 func (m *Manager) Send(peerUUID string, data interface{}, attributes map[string]string) error {
 	// Marshal the data
 	var dataBytes []byte
@@ -258,13 +271,12 @@ func (m *Manager) Send(peerUUID string, data interface{}, attributes map[string]
 	}
 
 	// Retrieve the peer
-	lpp, _ := m.peers.Load(peerUUID)
-	if lpp == nil {
+	m.peersMU.RLock()
+	peer, _ := m.peers[peerUUID]
+	m.peersMU.RUnlock()
+	if peer == nil {
 		return errors.New("failed to send message to " + peerUUID + ": peer not found")
 	}
-
-	// Cast the peer
-	peer := lpp.(*Peer)
 
 	// Apply sticky attributes
 	for k, v := range peer.StickyAttrbitues {
@@ -286,21 +298,20 @@ func (m *Manager) Send(peerUUID string, data interface{}, attributes map[string]
 		case peer.Ch <- message:
 			return nil
 		case <-time.After(m.Deadline):
-			return errors.New("failed to send message to " + peerUUID + ": deadline exceeded")
+			return errors.New("failed to send message to peer: " + peerUUID + ": deadline exceeded")
 		}
 	}
 }
 
-// Forwards an existing message to a peer
+// Forward Forwards an existing message to a peer
 func (m *Manager) Forward(peerUUID string, message Message) error {
 	// Retrieve the peer
-	lpp, _ := m.peers.Load(peerUUID)
-	if lpp == nil {
+	m.peersMU.RLock()
+	peer, _ := m.peers[peerUUID]
+	m.peersMU.RUnlock()
+	if peer == nil {
 		return errors.New("failed to forward message to " + peerUUID + ": peer not found")
 	}
-
-	// Cast the peer
-	peer := lpp.(*Peer)
 
 	// Apply sticky attributes
 	for k, v := range peer.StickyAttrbitues {
@@ -327,7 +338,7 @@ func (m *Manager) Forward(peerUUID string, message Message) error {
 	}
 }
 
-// Sends a message to all peers
+// FanOut Sends a message to all peers
 func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 	// Marshal the data
 	var dataBytes []byte
@@ -343,12 +354,12 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 	}
 
 	// Send the message to all peers
-	m.peers.Range(func(key, value interface{}) bool {
-		peer := value.(*Peer)
-
+	m.peersMU.Lock()
+	defer m.peersMU.Unlock()
+	for key, peer := range m.peers {
 		// Skip peers that are offline
 		if !peer.Online {
-			return true
+			continue
 		}
 
 		// Create a new message
@@ -381,18 +392,16 @@ func (m *Manager) FanOut(data interface{}, attributes map[string]string) error {
 					log.Println("failed to FanOut message to peer:", key, "deadline exceeded")
 					return
 				default:
-					log.Println("failed to FanOut message to peer:", key)
+					log.Println("failed to FanOut message to peer:", key, peer.ipAddr)
 				}
 			}()
 		}
-
-		return true
-	})
+	}
 
 	return nil
 }
 
-// Sends a message to all peers subscribed to a given topic
+// FanOutSubscribers Sends a message to all peers subscribed to a given topic
 func (m *Manager) FanOutSubscribers(data interface{}, attributes map[string]string, topic string) error {
 	// Marshal the data
 	var dataBytes []byte
@@ -408,12 +417,12 @@ func (m *Manager) FanOutSubscribers(data interface{}, attributes map[string]stri
 	}
 
 	// Send the message to all subscribers
-	m.peers.Range(func(key, value interface{}) bool {
-		peer := value.(*Peer)
-
+	m.peersMU.Lock()
+	defer m.peersMU.Unlock()
+	for key, peer := range m.peers {
 		// Skip peers that are offline
 		if !peer.Online {
-			return true
+			continue
 		}
 
 		// Create a new message
@@ -440,25 +449,21 @@ func (m *Manager) FanOutSubscribers(data interface{}, attributes map[string]stri
 						log.Println("failed to FanOut message to " + peer.UUID + ": " + err.Error())
 					}
 				} else {
-					// Send the message to the peers channel
 					go func() {
+						// Send via channel
 						select {
 						case peer.Ch <- message:
 							return
 						case <-time.After(m.Deadline):
-							log.Println("failed to FanOut message to peer:", key, "deadline exceeded")
+							log.Println("failed to FanOut message to peer:", key, ": deadline exceeded")
 							return
-						default:
-							log.Println("failed to FanOut message to peer:", key)
 						}
 					}()
 				}
 				break
 			}
 		}
-
-		return true
-	})
+	}
 
 	return nil
 }
